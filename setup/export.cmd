@@ -1,4 +1,4 @@
 conda activate pyNavi
-conda env export > ./environment.yaml
-conda list -e ./requirements.txt
+conda env export > ./setup/environment.yaml
+conda list -e ./setup/requirements.txt
 pause
