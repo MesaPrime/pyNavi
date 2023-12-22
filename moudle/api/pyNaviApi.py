@@ -5,6 +5,7 @@ pyNaviApp = FastAPI()
 
 headers = {'Authorization': 'Basic q25289577@outlook.com:pass'}
 
+
 @pyNaviApp.post('/upload', dependencies=[Depends(get_current_user)])
 async def upload(lat, long, name):
     pass
