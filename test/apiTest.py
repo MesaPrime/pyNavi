@@ -1,6 +1,6 @@
 import httpx
 
-headers = {'Authorization': 'Basic q25289577@outlook.com:869613109'}
+headers = {'Authorization': 'Basic q25289577@outlook.com:pass'}
 
 
 def test_asyncHttp():
