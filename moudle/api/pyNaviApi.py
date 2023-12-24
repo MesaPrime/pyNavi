@@ -11,6 +11,8 @@ headers = {'Authorization': 'Basic q25289577@outlook.com:pass'}
 async def upload(lat, long, name):
     pass
 
+
+
 if __name__ == "__main__":
 
     uvicorn.run(
