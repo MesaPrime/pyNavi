@@ -1,6 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, Depends
-from moudle.Security.token import get_current_user
+from module.Security.token import get_current_user
 
 pyNaviApp = FastAPI()
 
