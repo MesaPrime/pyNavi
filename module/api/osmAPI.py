@@ -56,7 +56,7 @@ async def capabilities() -> dict:
 
 async def getMap(left, bottom, right, top):
     async with httpx.AsyncClient() as client:
-        req = await client.get('https://api.openstreetmap.org/api/0.6', bbox=(left, bottom, right, top))
+        req = await client.get('https://api.openstreetmap.org/api/0.6/map.json', bbox=(left, bottom, right, top))
         match req.status_code:
             case 200:
                 return req.json()
@@ -65,3 +65,7 @@ async def getMap(left, bottom, right, top):
             case 509:
                 return {'error': '您下载的数据过多。请稍后再试'}
 
+
+async def permissions():
+    async with httpx.AsyncClient() as client:
+        req = await client.get('https://api.openstreetmap.org/api/0.6/permissions.json')

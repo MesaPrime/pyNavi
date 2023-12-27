@@ -30,6 +30,7 @@ async def getOSMToken() -> str:
         headers={'User-Agent': userAgent})
     # generate authorization URL and state (save it for later)
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
+    print(uri)
 
     async with async_playwright() as play:
         browser = await play.chromium.launch(headless=True, channel='chrome')
@@ -47,8 +48,13 @@ async def getOSMToken() -> str:
         await context.close()
 
         async with aiofiles.open(r'../../module/osmToken.json', 'w') as tokenFile:
-            await tokenFile.write(json.dumps({'token': token, 'time': str(arrow.now())}))
+            await tokenFile.write(json.dumps({'access_token': token, 'time': str(arrow.now())}))
         return token
+
+
+async def loadOSMToken(path: str = r'../../module/osmToken.json') -> dict:
+    async with aiofiles.open(path, 'r') as file:
+        return json.loads(await file.read())
 
 
 if __name__ == '__main__':
