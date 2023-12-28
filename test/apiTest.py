@@ -38,7 +38,7 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
     print(uri, state)
 
-    code = httpx.get(uri)
+    code = httpx.get(uri)  # get code via uri
 
     payload = {'grant_type': 'authorization_code', 'client_id': client_id, 'client_secret': client_secret,
                'code': code, 'redirect_uri': 'http://127.0.0.1:7777/redirect', 'scope': scope}
