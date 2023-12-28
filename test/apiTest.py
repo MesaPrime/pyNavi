@@ -1,3 +1,4 @@
+import httpx
 import playwright.async_api
 import xmltodict
 import asyncio
@@ -37,10 +38,11 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
     print(uri, state)
 
-    payload = {'grant_type': 'authorization+code', 'client_id': client_id, 'client_secret': client_secret,
-               'code': state, 'redirect_uri': 'http://127.0.0.1:7777/redirect'}
-    token = await client.fetch_token('https://www.openstreetmap.org/oauth2/token', authorization_response=redirect_uri,
-                                     grant_type='authorization_code')
+    code = httpx.get(uri)
+
+    payload = {'grant_type': 'authorization_code', 'client_id': client_id, 'client_secret': client_secret,
+               'code': code, 'redirect_uri': 'http://127.0.0.1:7777/redirect', 'scope': scope}
+    token = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)['access_token']
     print(token)
     # return token
 
