@@ -23,7 +23,7 @@ with open(r'../module/osmAuthSecret.json', 'r') as file:
 
 # URI to redirect to after successful authorization
 # redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
-redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
+redirect_uri = 'http://127.0.0.1:7777/redirect'
 
 
 async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
@@ -37,14 +37,11 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
     print(uri, state)
 
-    # payload = {'grant_type': 'authorization+code', 'client_id': client_id, 'client_secret': client_secret,
-    #            'code': state, 'redirect_uri': 'http://127.0.0.1:8000'}
-    # token = await client.fetch_token("https://www.openstreetmap.org/oauth2/token",
-    #                                  authorization_response='http://127.0.0.1:8000',
-    #                                  client_secret=client_secret,
-    #                                  # grant_type='authorization_code',
-    #                                  code=input())
-    # print(token)
+    payload = {'grant_type': 'authorization+code', 'client_id': client_id, 'client_secret': client_secret,
+               'code': state, 'redirect_uri': 'http://127.0.0.1:7777/redirect'}
+    token = await client.fetch_token('https://www.openstreetmap.org/oauth2/token', authorization_response=redirect_uri,
+                                     grant_type='authorization_code')
+    print(token)
     # return token
 
     async with async_playwright() as play:
@@ -64,6 +61,7 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
         token = await page.locator('#authorization_code').inner_html()
         print(token)
         await context.storage_state(path=r'../module/osmStorage.json')
+        await page.wait_for_timeout(300)
         await context.close()
 
         async with aiofiles.open(r'../module/osmToken.json', 'w') as tokenFile:
