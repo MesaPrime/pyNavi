@@ -47,12 +47,12 @@ async def getOSMToken() -> str:
         await context.storage_state(path=r'../../module/osmStorage.json')
         await context.close()
 
-        async with aiofiles.open(r'../../module/osmToken.json', 'w') as tokenFile:
+        async with aiofiles.open(r'../../module/osmAuthSecret.json', 'w') as tokenFile:
             await tokenFile.write(json.dumps({'access_token': token, 'time': str(arrow.now())}))
         return token
 
 
-async def loadOSMToken(path: str = r'../../module/osmToken.json') -> dict:
+async def loadOSMToken(path: str = r'../../module/osmAuthSecret.json') -> dict:
     async with aiofiles.open(path, 'r') as file:
         return json.loads(await file.read())
 

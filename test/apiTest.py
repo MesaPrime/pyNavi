@@ -12,7 +12,7 @@ pytest_plugins = ('pytest_asyncio',)
 #     headerFromFile = json.loads(file.read())
 # headers = httpx.Headers({"Authorization": "Basic cTI1Mjg5NTc3QG91dGxvb2suY29tJTNBQm9tYjczNTU2MDg="})
 
-with open(r'../module/osmAuthSecret.json', 'r') as file:
+with open(r'E:\Anaconda\envs\pyNavi\project\pyNavi\module\osmAuthSecret.json', 'r') as file:
     data = json.loads(file.read())
     client_id = data['client_id']
     client_secret = data['client_secret']
@@ -38,12 +38,15 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
     print(uri, state)
 
-    code = httpx.get(uri)  # get code via uri
+    async with aiofiles.open(r'../module/osmCookies.json', 'r') as file:
+        cookies = json.loads(await file.read())
+
+    code = httpx.get(uri, follow_redirects=True, cookies=cookies)  # get code via uri
 
     payload = {'grant_type': 'authorization_code', 'client_id': client_id, 'client_secret': client_secret,
                'code': code, 'redirect_uri': 'http://127.0.0.1:7777/redirect', 'scope': scope}
-    token = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)['access_token']
-    print(token)
+    # token = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)['access_token']
+    # print(token)
     # return token
 
     async with async_playwright() as play:
@@ -66,7 +69,7 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
         await page.wait_for_timeout(300)
         await context.close()
 
-        async with aiofiles.open(r'../module/osmToken.json', 'w') as tokenFile:
+        async with aiofiles.open(r'../module/osmAuthSecret.json', 'w') as tokenFile:
             await tokenFile.write(json.dumps({'token': token}))
         return token
 
