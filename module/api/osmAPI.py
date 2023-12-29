@@ -1,4 +1,14 @@
+import asyncio
+import json
 import httpx
+import aiofiles
+
+
+async def loadAccessToken(path: str = r'../osmAccessToken.json') -> dict:
+    async with aiofiles.open(path) as file:
+        osmAccessTokenData = json.loads(await file.read())
+        authHeader = {'Authorization': f"{osmAccessTokenData['token_type']} {osmAccessTokenData['access_token']}"}
+        return authHeader
 
 
 async def version() -> str:
@@ -6,7 +16,8 @@ async def version() -> str:
     返回API版本
     :return: API 版本
     """
-    async with httpx.AsyncClient() as client:
+    authHeader = await loadAccessToken()
+    async with httpx.AsyncClient(headers=authHeader) as client:
         req = await client.get('https://api.openstreetmap.org/api/versions.json')
         try:
             APIversion = req.json()['version']
@@ -49,14 +60,17 @@ async def capabilities() -> dict:
     'policy': 编辑者不得将这些资源显示为背景层
     :return:
     """
-    async with httpx.AsyncClient() as client:
+    authHeader = await loadAccessToken()
+    async with httpx.AsyncClient(headers=authHeader) as client:
         req = await client.get('https://api.openstreetmap.org/api/0.6/capabilities.json')
         return req.json()
 
 
 async def getMap(left, bottom, right, top):
-    async with httpx.AsyncClient() as client:
-        req = await client.get('https://api.openstreetmap.org/api/0.6/map.json', bbox=(left, bottom, right, top))
+    authHeader = await loadAccessToken()
+    async with httpx.AsyncClient(headers=authHeader) as client:
+        req = await client.get('https://api.openstreetmap.org/api/0.6/map.json',
+                               params={'left': left, 'bottom': bottom, 'right': right, 'top': top})
         match req.status_code:
             case 200:
                 return req.json()
@@ -67,5 +81,11 @@ async def getMap(left, bottom, right, top):
 
 
 async def permissions():
-    async with httpx.AsyncClient() as client:
+    authHeader = await loadAccessToken()
+    async with httpx.AsyncClient(headers=authHeader) as client:
         req = await client.get('https://api.openstreetmap.org/api/0.6/permissions.json')
+    return req.json()
+
+
+if __name__ == '__main__':
+    asyncio.run(permissions())

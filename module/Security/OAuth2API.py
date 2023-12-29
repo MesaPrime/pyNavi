@@ -5,7 +5,7 @@ import httpx
 import uvicorn
 from fastapi import FastAPI
 
-OAuthApp = FastAPI()
+OAuthApp = FastAPI()  # todo:update cookie in background
 
 
 @OAuthApp.get('/getAccessToken')
@@ -24,9 +24,7 @@ async def getOSMToken():
         scope=scope,
         redirect_uri=redirect_uri,
         headers={'User-Agent': userAgent})
-    # generate authorization URL and state (save it for later)
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
-    print(uri, state)
 
     async with aiofiles.open(r'../osmCookies.json', 'r') as file:
         cookies = json.loads(await file.read())
@@ -53,8 +51,7 @@ async def redirect(code, state):
                'redirect_uri': 'http://127.0.0.1:7777/redirect'}
 
     async with httpx.AsyncClient() as client:
-        accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token',
-                                                data=payload)
+        accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)
 
     async with aiofiles.open(r'../osmAccessToken.json', 'w') as file:
         await file.write(json.dumps(accessTokenResponse.json()))
