@@ -320,6 +320,14 @@ class Relation(ELEMENT):
         else:
             self.tags = [{'@k': 'created_by', '@v': 'MesaPrime via api'}]
 
+        if ways:
+            for way in ways:
+                self.addNode(way)
+
+        if nodes:
+            for node in nodes:
+                self.addNode(node)
+
     def addNode(self, newNode: NODE | str):
         if isinstance(newNode, NODE):
             newNodeData = {f'@{key}': getattr(newNode, key)
