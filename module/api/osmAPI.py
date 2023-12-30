@@ -3,7 +3,6 @@ import json
 import httpx
 import aiofiles
 from typing import Optional, Union, Literal, List, Dict, Iterable
-
 import xmltodict
 
 
@@ -181,7 +180,7 @@ async def unsubscribeChangeSet(changeSetID):  # todo:need test
             data = xmltodict.unparse(req.text)
             return {'message': 'success', 'status': 'ok', 'data': data}
         case 404:
-            return {'message': f'cannot find changeSet {changeSetID}'}
+            return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
         case _:
             return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
 
@@ -203,10 +202,67 @@ class ELEMENT:
         nodeData = xmltodict.unparse(uploadData, root='osm')
         authHeader = await loadAccessToken()
         async with httpx.AsyncClient(headers=authHeader) as client:
-            res = await client.put(f'https://api.openstreetmap.org/api/0.6/{self.elementType}/create',
+            req = await client.put(f'https://api.openstreetmap.org/api/0.6/{self.elementType}/create',
                                    content=nodeData.encode())
-        # todo: check statusCode
-        self.ref = res.text
+        match req.status_code:
+            case 200:
+                # todo: check statusCode
+                self.ref = req.text
+                return {'message': f'create {self.elementType} success', 'status': 'ok', 'data': self.ref}
+            case 400:
+                return {'message': f'cannot create {self.elementType}', 'status': 'fail', 'data': req.text}
+            case 409:
+                return {'message': f'changeset {changeSet} has closed or this changeset is not owned by you',
+                        'status': 'fail'}
+            case 412:
+                return {'message': f'the {self.elementType} has element that do not exist or are nor visible',
+                        'status': 'fail'}
+            case _:
+                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+
+    async def read(self, elementID: str) -> dict:
+        authHeader = await loadAccessToken()
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.get(f'https://api.openstreetmap.org/api/0.6/{self.elementType}/create/{elementID}')
+            match req.status_code:
+                case 200:
+                    return {'message': 'read element successful', 'status': 'ok', 'data': xmltodict.parse(req.text)}
+                case 404:
+                    return {'message': f'cannot find element:{elementID}', 'status': 'fail'}
+                case 410:
+                    return {'message': f'element:{elementID} has been deleted', 'status': 'fail'}
+                case _:
+                    return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+
+    async def update(self, elementID: str, xmlData: str) -> dict:
+        authHeader = await loadAccessToken()
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.put(f'https://api.openstreetmap.org/api/0.6/{self.elementType}/{elementID}',
+                                   content=xmlData.encode())
+        match req.status_code:
+            case 200:
+                # todo: check statusCode
+                self.ref = req.text
+                return {'message': f'update {self.elementType} success', 'status': 'ok', 'data': req.text}
+            case 400:
+                return {'message': f'cannot update {self.elementType}', 'status': 'fail', 'data': req.text}
+            case 409:
+                return {'message': 'conflict', 'status': 'fail', 'data': req.text}
+            case 404:
+                return {'message': 'no element with the given id could be found', 'status': 'fail', 'data': req.text}
+            case 412:
+                return {'message': f'the {self.elementType} has element that do not exist or are nor visible',
+                        'status': 'fail', 'data': req.text}
+            case _:
+                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+
+    async def delete(self, elementID: str):
+        elementData = await self.read(elementID)
+        xmlData = xmltodict.unparse(elementData)
+        authHeader = await loadAccessToken()
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.put(f'https://api.openstreetmap.org/api/0.6/{self.elementType}/{elementID}',
+                                   content=xmlData.encode())
 
 
 class NODE(ELEMENT):
@@ -266,9 +322,25 @@ class Relation(ELEMENT):
 
     def addNode(self, newNode: NODE | str):
         if isinstance(newNode, NODE):
-            self.members.append({'ref': newNode.ref})
+            newNodeData = {f'@{key}': getattr(newNode, key)
+                           for key in dir(newNode)
+                           if not callable(getattr(newNode, key))}
+            self.members.append(
+                {'@ref': newNode.ref, '@type': 'node'}.update(newNodeData)
+            )
         else:
-            self.members.append({'ref': newNode})
+            self.members.append({'@ref': newNode})
+
+    def addWay(self, newWay: WAY | str):
+        if isinstance(newWay, WAY):
+            newNodeData = {f'@{key}': getattr(newWay, key)
+                           for key in dir(newWay)
+                           if not callable(getattr(newWay, key))}
+            self.members.append(
+                {'@ref': newWay.ref, '@type': 'way'}.update(newNodeData)
+            )
+        else:
+            self.members.append({'@ref': newWay})
 
     @property
     def data(self):
@@ -276,12 +348,6 @@ class Relation(ELEMENT):
             'tag': self.tags,
             'member': self.members}
         }
-
-
-async def createElement(elementType: Literal['node', 'way', 'relation', 'xml'], changeSet: str, **kwargs):
-    match elementType:
-        case 'node':
-            data = xmltodict.unparse({'osm': {'node': ''}})
 
 
 if __name__ == '__main__':
