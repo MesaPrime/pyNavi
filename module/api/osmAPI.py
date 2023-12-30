@@ -2,7 +2,7 @@ import asyncio
 import json
 import httpx
 import aiofiles
-from typing import Optional, Union
+from typing import Optional, Union, Literal, List, Dict, Iterable
 
 import xmltodict
 
@@ -186,8 +186,102 @@ async def unsubscribeChangeSet(changeSetID):  # todo:need test
             return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
 
 
-async def createElement():
-    pass # todo:need to be done
+class ELEMENT:
+    def __init__(self, elementType: Literal['node', 'way', 'relation', None] = None):
+        self.data = None
+        self.elementType = elementType
+        self.ref = None
+
+    def __str__(self):
+        fullXml = xmltodict.unparse(self.data, pretty=True)  # todo: check if available
+        xmlWithoutVersion = fullXml[39:]
+        return xmlWithoutVersion
+
+    async def upload(self, changeSet: str):
+        uploadData: Dict[str:dict] = dict(self.data)
+        uploadData[self.elementType].update({'@changeset': changeSet})
+        nodeData = xmltodict.unparse(uploadData, root='osm')
+        authHeader = await loadAccessToken()
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            res = await client.put(f'https://api.openstreetmap.org/api/0.6/{self.elementType}/create',
+                                   content=nodeData.encode())
+        # todo: check statusCode
+        self.ref = res.text
+
+
+class NODE(ELEMENT):
+    def __init__(self, lat: float, lon: float, tags: Optional[dict] = None, text: Optional[str] = None):
+        super().__init__(elementType='node')
+        self.lat = lat
+        self.lon = lon
+        if tags is not None:
+            self.tags = [{'@k': key, '@v': value} for key, value in tags.items()]
+        else:
+            self.tags = [{'@k': 'created_by', '@v': 'MesaPrime via api'}]
+
+        self.data: Dict[str, dict] = {'node': {'@lat': self.lat,
+                                               '@lon': self.lon,
+                                               'tag': self.tags}}
+
+
+class WAY(ELEMENT):
+    def __init__(self, nodes: Iterable[NODE | str] | None = None, tags: Optional[dict] = None):
+        super().__init__(elementType='way')
+        if tags is not None:
+            self.tags = [{'@k': key, '@v': value} for key, value in tags.items()]
+        else:
+            self.tags = [{'@k': 'created_by', '@v': 'MesaPrime via api'}]
+
+        self.nodesData = list()
+        if isinstance(nodes, Iterable):
+            for node in nodes:
+                self.addNode(node)
+
+    def addNode(self, newNode: NODE | str):
+        if isinstance(newNode, NODE):
+            try:
+                self.nodesData.append([{'@ref': newNode.ref}])
+            except AttributeError:
+                pass
+            pass  # todo: complete it
+        elif isinstance(newNode, str):
+            self.nodesData.append([{'@ref': newNode}])
+
+    @property
+    def data(self):
+        return {'way': {'nd': self.nodesData,
+                        'tag': self.tags}}
+
+
+class Relation(ELEMENT):
+    def __init__(self, ways: Iterable[WAY | str] | None = None,
+                 nodes: Iterable[NODE | str] | None = None,
+                 tags: Optional[dict] = None):
+        super().__init__(elementType='relation')
+        self.members = list()
+        if tags is not None:
+            self.tags = [{'@k': key, '@v': value} for key, value in tags.items()]
+        else:
+            self.tags = [{'@k': 'created_by', '@v': 'MesaPrime via api'}]
+
+    def addNode(self, newNode: NODE | str):
+        if isinstance(newNode, NODE):
+            self.members.append({'ref': newNode.ref})
+        else:
+            self.members.append({'ref': newNode})
+
+    @property
+    def data(self):
+        return {'relation': {
+            'tag': self.tags,
+            'member': self.members}
+        }
+
+
+async def createElement(elementType: Literal['node', 'way', 'relation', 'xml'], changeSet: str, **kwargs):
+    match elementType:
+        case 'node':
+            data = xmltodict.unparse({'osm': {'node': ''}})
 
 
 if __name__ == '__main__':
