@@ -90,7 +90,7 @@ async def permissions():
     return req.json()
 
 
-async def _createChangeSet(xml: Union[Optional[str], dict] = None) -> str:
+async def createChangeSet(xml: Union[Optional[str], dict] = None) -> str:
     if xml is None:
         xml = r'<?xml version="1.0" encoding="utf-8"?>\n<osm><changeset><tag k="created_by" v="MesaPrime via api"></tag><tag k="comment" v="add data"></tag>...</changeset>...</osm>'
     elif isinstance(xml, dict):
@@ -359,4 +359,4 @@ class Relation(ELEMENT):
 
 
 if __name__ == '__main__':
-    asyncio.run(_createChangeSet())
+    asyncio.run(createChangeSet())
