@@ -22,6 +22,8 @@ async def createNode(lat, lon, changeset: None | str = None, **kwargs) -> dict:
         changeset = await createChangeSet()
         msg = await node.upload(changeset)
 
+    return msg
+
 
 if __name__ == "__main__":
     uvicorn.run(
