@@ -4,6 +4,8 @@ import httpx
 import aiofiles
 from typing import Optional, Union, Literal, List, Dict, Iterable
 import xmltodict
+from enum import Enum
+from arrow import Arrow
 
 
 async def loadAccessToken(path: str = r'../osmAccessToken.json') -> dict:
@@ -90,99 +92,120 @@ async def permissions():
     return req.json()
 
 
-async def createChangeSet(xml: Union[Optional[str], dict] = None) -> str:
-    if xml is None:
-        xml = r'<?xml version="1.0" encoding="utf-8"?>\n<osm><changeset><tag k="created_by" v="MesaPrime via api"></tag><tag k="comment" v="add data"></tag>...</changeset>...</osm>'
-    elif isinstance(xml, dict):
-        xml = xmltodict.unparse(xml)
-
-    authHeader = await loadAccessToken()
-    async with httpx.AsyncClient(headers=authHeader) as client:
-        req = await client.put('https://api.openstreetmap.org/api/0.6/changeset/create.json',
-                               content=xml.encode())
-        changeSetID = req.text
-        return changeSetID
+class STATUS(Enum):
+    open = 1
+    close = 0
+    unknown = -1
 
 
-async def closeChangeSet(changeSetID) -> dict:
-    authHeader = await loadAccessToken()
-    async with httpx.AsyncClient(headers=authHeader) as client:
-        req = await client.put(f'https://api.openstreetmap.org/api/0.6/changeset/{changeSetID}/close')
-    match req.status_code:
-        case 200:
-            return {'message': f'changeSet {changeSetID} has closed', 'status': 'ok'}
-        case 404:
-            return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
-        case 409:
-            return {'message': req.text, 'status': 'fail'}
-        case _:
-            return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+class CHANGESET:
+    def __init__(self, changeSetID: str):
+        self.changeSetID = changeSetID
+        self.status = STATUS.unknown
+        self.lastActivateTime = Arrow.now()
 
+    def __str__(self):
+        return f'changeSet:{self.changeSetID}'
 
-async def downloadChangeSet(changeSetID) -> dict:
-    authHeader = await loadAccessToken()
-    async with httpx.AsyncClient(headers=authHeader) as client:
-        req = await client.get(f'https://api.openstreetmap.org/api/0.6/changeset/{changeSetID}/download')
-    match req.status_code:
-        case 200:
-            data = xmltodict.unparse(req.text)
-            return {'message': 'success', 'status': 'ok', 'data': data}
-        case 404:
-            return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
-        case _:
-            return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+    async def createChangeSet(self, xml: Union[Optional[str], dict] = None) -> str:
+        if xml is None:
+            xml = r'<?xml version="1.0" encoding="utf-8"?>\n<osm><changeset><tag k="created_by" v="MesaPrime via api"></tag><tag k="comment" v="add data"></tag>...</changeset>...</osm>'
+        elif isinstance(xml, dict):
+            xml = xmltodict.unparse(xml)
 
+        authHeader = await loadAccessToken()
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.put('https://api.openstreetmap.org/api/0.6/changeset/create.json',
+                                   content=xml.encode())
+            changeSetID = req.text
+            self.changeSetID = changeSetID
+            return changeSetID
 
-async def getChangeSetQuery(**kwargs):
-    pass  # todo:complete it
+    async def closeChangeSet(self, changeSetID: Optional[str] = None) -> dict:
+        authHeader = await loadAccessToken()
+        if changeSetID is None:
+            changeSetID = self.changeSetID
 
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.put(f'https://api.openstreetmap.org/api/0.6/changeset/{changeSetID}/close')
+        match req.status_code:
+            case 200:
+                return {'message': f'changeSet {changeSetID} has closed', 'status': 'ok'}
+            case 404:
+                return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
+            case 409:
+                return {'message': req.text, 'status': 'fail'}
+            case _:
+                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
 
-async def diffUploadChangeSet(changeSetID, osmFormatFile):
-    pass  # todo:complete
+    async def downloadChangeSet(self, changeSetID: Optional[str]) -> dict:
+        authHeader = await loadAccessToken()
+        if changeSetID is None:
+            changeSetID = self.changeSetID
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.get(f'https://api.openstreetmap.org/api/0.6/changeset/{changeSetID}/download')
+        match req.status_code:
+            case 200:
+                data = xmltodict.unparse(req.text)
+                return {'message': 'success', 'status': 'ok', 'data': data}
+            case 404:
+                return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
+            case _:
+                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
 
+    async def getChangeSetQuery(self, **kwargs):
+        pass  # todo:complete it
 
-async def commentChangeSet(changeSetID, text: str):  # todo:need test
-    authHeader = await loadAccessToken()
-    async with httpx.AsyncClient(headers=authHeader) as client:
-        req = await client.post(f'https://api.openstreetmap.org/api/0.6//api/0.6/{changeSetID}/comment', params=text)
-    match req.status_code:
-        case 200:
-            data = xmltodict.unparse(req.text)
-            return {'message': 'success', 'status': 'ok', 'data': data}
-        case 400:
-            return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
-        case 409:
-            return {'message': f'changeSet {changeSetID} closed', 'status': 'fail'}
-        case _:
-            return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+    async def diffUploadChangeSet(self, changeSetID, osmFormatFile):
+        pass  # todo:complete
 
+    async def commentChangeSet(self, text: str, changeSetID: Optional[str] = None):  # todo:need test
+        authHeader = await loadAccessToken()
+        if changeSetID is None:
+            changeSetID = self.changeSetID
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.post(f'https://api.openstreetmap.org/api/0.6//api/0.6/{changeSetID}/comment',
+                                    params=text)
+        match req.status_code:
+            case 200:
+                data = xmltodict.unparse(req.text)
+                return {'message': 'success', 'status': 'ok', 'data': data}
+            case 400:
+                return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
+            case 409:
+                return {'message': f'changeSet {changeSetID} closed', 'status': 'fail'}
+            case _:
+                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
 
-async def subscribeChangeSet(changeSetID):  # todo:need test
-    authHeader = await loadAccessToken()
-    async with httpx.AsyncClient(headers=authHeader) as client:
-        req = await client.post(f'https://api.openstreetmap.org/api/0.6/{changeSetID}/subscribe')
-    match req.status_code:
-        case 200:
-            data = xmltodict.unparse(req.text)
-            return {'message': 'success', 'status': 'ok', 'data': data}
-        case 409:
-            return {'message': f'changeSet {changeSetID} have been subscribed'}
-        case _:
-            return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+    async def subscribeChangeSet(self, changeSetID: Optional[str] = None):  # todo:need test
+        authHeader = await loadAccessToken()
+        if changeSetID is None:
+            changeSetID = self.changeSetID
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.post(f'https://api.openstreetmap.org/api/0.6/{changeSetID}/subscribe')
+        match req.status_code:
+            case 200:
+                data = xmltodict.unparse(req.text)
+                return {'message': 'success', 'status': 'ok', 'data': data}
+            case 409:
+                return {'message': f'changeSet {changeSetID} have been subscribed'}
+            case _:
+                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
 
-
-async def unsubscribeChangeSet(changeSetID):  # todo:need test
-    authHeader = await loadAccessToken()
-    async with httpx.AsyncClient(headers=authHeader) as client:
-        req = await client.post(f'https://api.openstreetmap.org/api/0.6/{changeSetID}/unsubscribe')
-    match req.status_code:
-        case 200:
-            data = xmltodict.unparse(req.text)
-            return {'message': 'success', 'status': 'ok', 'data': data}
-        case 404:
-            return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
-        case _:
-            return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+    async def unsubscribeChangeSet(self, changeSetID: Optional[str] = None):  # todo:need test
+        authHeader = await loadAccessToken()
+        if changeSetID is None:
+            changeSetID = self.changeSetID
+        async with httpx.AsyncClient(headers=authHeader) as client:
+            req = await client.post(f'https://api.openstreetmap.org/api/0.6/{changeSetID}/unsubscribe')
+        match req.status_code:
+            case 200:
+                data = xmltodict.unparse(req.text)
+                return {'message': 'success', 'status': 'ok', 'data': data}
+            case 404:
+                return {'message': f'cannot find changeSet {changeSetID}', 'status': 'fail'}
+            case _:
+                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
 
 
 class ELEMENT:
@@ -196,7 +219,7 @@ class ELEMENT:
         xmlWithoutVersion = fullXml[39:]
         return xmlWithoutVersion
 
-    async def upload(self, changeSet: str):
+    async def upload(self, changeSet: str | CHANGESET):
         uploadData: Dict[str:dict] = dict(self.data)
         uploadData[self.elementType].update({'@changeset': changeSet})
         nodeData = xmltodict.unparse(uploadData, root='osm')
@@ -358,5 +381,15 @@ class Relation(ELEMENT):
         }
 
 
+class COMMITMENT:
+    def __init__(self, changeSet: CHANGESET | str, element: ELEMENT):
+        if isinstance(changeSet, str):
+            self.changeSet = CHANGESET(changeSetID=changeSet)
+        else:
+            self.changeSet = changeSet
+
+        self.data = element  # todo: fix!
+
+
 if __name__ == '__main__':
-    asyncio.run(createChangeSet())
+    pass
