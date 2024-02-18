@@ -1,6 +1,6 @@
 import uvicorn
 from fastapi import FastAPI, Depends
-from module.Security.fastapiToken import get_current_user
+from modules.Security.fastapiToken import get_current_user
 from osmAPI import NODE, ELEMENT, Relation, createChangeSet
 
 pyNaviApp = FastAPI()

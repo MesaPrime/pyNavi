@@ -8,11 +8,11 @@ from playwright.async_api import Playwright, Page, Locator, async_playwright
 import aiofiles
 
 pytest_plugins = ('pytest_asyncio',)
-# with open(r'../module/osmAuth.json') as file:
+# with open(r'../modules/osmAuth.json') as file:
 #     headerFromFile = json.loads(file.read())
 # headers = httpx.Headers({"Authorization": "Basic cTI1Mjg5NTc3QG91dGxvb2suY29tJTNBQm9tYjczNTU2MDg="})
 
-with open(r'E:\Anaconda\envs\pyNavi\project\pyNavi\module\osmAuthSecret.json', 'r') as file:
+with open(r'/modules\osmAuthSecret.json', 'r') as file:
     data = json.loads(file.read())
     client_id = data['client_id']
     client_secret = data['client_secret']
@@ -38,7 +38,7 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
     print(uri, state)
 
-    async with aiofiles.open(r'../module/osmCookies.json', 'r') as file:
+    async with aiofiles.open(r'../modules/osmCookies.json', 'r') as file:
         cookies = json.loads(await file.read())
 
     code = httpx.get(uri, follow_redirects=True, cookies=cookies)  # get code via uri
@@ -52,7 +52,7 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
     async with async_playwright() as play:
         browser = await play.chromium.launch(headless=False, channel='chrome')
         try:
-            context = await browser.new_context(storage_state=r'../module/osmStorage.json')
+            context = await browser.new_context(storage_state=r'../modules/osmStorage.json')
         except FileNotFoundError:
             context = await browser.new_context()
         page = await context.new_page()
@@ -65,11 +65,11 @@ async def getOSMToken(client_id, client_secret, scope, userAgent, redirect_uri):
             print('get osmToken timeout!')
         token = await page.locator('#authorization_code').inner_html()
         print(token)
-        await context.storage_state(path=r'../module/osmStorage.json')
+        await context.storage_state(path=r'../modules/osmStorage.json')
         await page.wait_for_timeout(300)
         await context.close()
 
-        async with aiofiles.open(r'../module/osmAuthSecret.json', 'w') as tokenFile:
+        async with aiofiles.open(r'../modules/osmAuthSecret.json', 'w') as tokenFile:
             await tokenFile.write(json.dumps({'token': token}))
         return token
 

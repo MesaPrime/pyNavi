@@ -5,7 +5,7 @@ import json
 # using httpx implementation (async)
 #from authlib.integrations.httpx_client import AsyncOAuth2Client
 
-with open(r'../module/osmAuthSecret.json', 'r') as file:
+with open(r'../modules/osmAuthSecret.json', 'r') as file:
     data = json.loads(file.read())
     client_id = data['client_id']
     client_secret = data['client_secret']
