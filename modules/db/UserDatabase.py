@@ -29,9 +29,9 @@ class UserDatabase:
         self.cursor = self.database.cursor()
         self.cursor.execute(
             "CREATE TABLE IF NOT EXISTS user(id integer primary key autoincrement, \n"
-            "            username str, \n"
-            "            hashed_password str, \n"
-            "            email str)")
+            "            username TEXT, \n"
+            "            hashed_password TEXT, \n"
+            "            email TEXT)")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.cursor.close()

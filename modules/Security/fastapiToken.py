@@ -54,9 +54,11 @@ def authenticate_user(username: str, password: str):
         user = db[username]
     if not user:
         return False
-    if not verify_password(password, user.hashed_password):
-        return False
-    return user
+    else:
+        if not verify_password(password, user.hashed_password):
+            return False
+        else:
+            return user
 
 
 def create_access_token(data: dict, expires_delta: Union[datetime.timedelta, None] = None):
