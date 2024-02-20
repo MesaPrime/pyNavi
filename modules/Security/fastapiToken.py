@@ -5,11 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from ..db.UserDatabase import UserInDB, UserDatabase
 from pydantic import BaseModel
 from typing import Dict, Optional, Union
+import sys
 
-db = UserDatabase(r"./app/db/user.db")
+sys.path.insert(0, '..')
+from db import UserDatabase
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -50,7 +51,7 @@ def get_password_hash(password):
 
 
 def authenticate_user(username: str, password: str):
-    with db:
+    with UserDatabase.UserDatabase(debugMode=False) as db:
         user = db[username]
     if not user:
         return False
@@ -61,7 +62,10 @@ def authenticate_user(username: str, password: str):
             return user
 
 
-def create_access_token(data: dict, expires_delta: Union[datetime.timedelta, None] = None):
+def create_access_token(data: dict, expires_delta: Union[datetime.timedelta, None] = None) -> Token:
+    global SECRET_KEY
+    global ALGORITHM
+
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.datetime.utcnow() + expires_delta
@@ -69,10 +73,13 @@ def create_access_token(data: dict, expires_delta: Union[datetime.timedelta, Non
         expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return Token(access_token=encoded_jwt, token_type='bearer')
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    global SECRET_KEY
+    global ALGORITHM
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -80,14 +87,21 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        username: str = payload.get("username")
         if username is None:
             raise credentials_exception
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    with db:
+    with UserDatabase.UserDatabase(debugMode=False) as db:
         user = db[token_data.username]
     if user is None:
         raise credentials_exception
     return user
+
+
+def loginForToken(formData: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
+    if user := authenticate_user(formData.username, formData.password):
+        return create_access_token({'username': user.username})
+    else:
+        raise UserDatabase.UserAuthFailException
