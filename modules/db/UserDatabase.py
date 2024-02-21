@@ -4,6 +4,14 @@ from functools import wraps
 from pydantic import BaseModel
 
 
+class UserAuthFailException(Exception):
+    def __init__(self, message='', *args, **kwargs):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
 class UserInDB(BaseModel):
     id: Optional[int] = None
     username: str
@@ -22,7 +30,7 @@ class UserDatabase:
             if path is not None:
                 self.path = path
             else:
-                self.path = r"./user.db"
+                self.path = r"./dataStorage/user.db"
 
     def __enter__(self):
         self.database = sqlite3.connect(self.path)
@@ -32,6 +40,7 @@ class UserDatabase:
             "            username TEXT, \n"
             "            hashed_password TEXT, \n"
             "            email TEXT)")
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.cursor.close()

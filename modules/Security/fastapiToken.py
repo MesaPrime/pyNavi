@@ -100,7 +100,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
     return user
 
 
-def loginForToken(formData: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
+def loginForToken(formData: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)) -> Token:
     if user := authenticate_user(formData.username, formData.password):
         return create_access_token({'username': user.username})
     else:
