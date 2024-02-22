@@ -3,7 +3,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Any
 
 from starlette import status
 
@@ -27,6 +27,7 @@ class Message(BaseModel):
     msg: str
     code: int
     token: Optional[Token] = None
+    data: Any = None
 
 
 @app.post("/token")
@@ -48,6 +49,13 @@ async def uploadTargetData(destinationData: DestinationDatabase.DestinationData,
     with DestinationDatabase.DestinationDatabase('./dataStorage/destination.db', debugMode) as db:
         message: dict = db.insert(destinationData)
         return message
+
+
+@app.get('/feedAll', name='输出所有待处理地点数据')
+async def feedAll(token: Token = Depends(oauth2_scheme), debugMode: bool = False) -> Message:
+    with DestinationDatabase.DestinationDatabase('./dataStorage/destination.db', debugMode) as db:
+        data = db.selectAll()
+    return Message(msg='ok', code=200, data=data)
 
 
 if __name__ == '__main__':

@@ -133,6 +133,9 @@ class DestinationDatabase:
         except sqlite3.ProgrammingError as error:
             return str(error)
 
+    def selectAll(self) -> list:
+        return self.cursor.execute("SELECT * FROM destination").fetchall()
+
 
 if __name__ == '__main__':
     pass

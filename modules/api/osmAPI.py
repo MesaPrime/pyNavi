@@ -6,6 +6,7 @@ from typing import Optional, Union, Literal, List, Dict, Iterable
 import xmltodict
 from enum import Enum
 from arrow import Arrow
+from modules.server import Message
 
 
 async def loadAccessToken(path: str = r'../osmAccessToken.json') -> dict:
@@ -99,8 +100,10 @@ class STATUS(Enum):
 
 
 class CHANGESET:
-    def __init__(self, changeSetID: str):
-        self.changeSetID = changeSetID
+
+    def __init__(self, changeSetID: Optional[str] = None):
+        if changeSetID:
+            self.changeSetID = changeSetID
         self.status = STATUS.unknown
         self.lastActivateTime = Arrow.now()
 
@@ -114,7 +117,7 @@ class CHANGESET:
             xml = xmltodict.unparse(xml)
 
         authHeader = await loadAccessToken()
-        async with httpx.AsyncClient(headers=authHeader) as client:
+        async with httpx.AsyncClient(headers=authHeader, proxy='http://127.0.0.1:7890') as client:
             req = await client.put('https://api.openstreetmap.org/api/0.6/changeset/create.json',
                                    content=xml.encode())
             changeSetID = req.text
@@ -219,7 +222,7 @@ class ELEMENT:
         xmlWithoutVersion = fullXml[39:]
         return xmlWithoutVersion
 
-    async def upload(self, changeSet: str | CHANGESET):
+    async def upload(self, changeSet: str | CHANGESET) -> Message:
         uploadData: Dict[str:dict] = dict(self.data)
         uploadData[self.elementType].update({'@changeset': changeSet})
         nodeData = xmltodict.unparse(uploadData, root='osm')
@@ -231,17 +234,22 @@ class ELEMENT:
             case 200:
                 # todo: check statusCode
                 self.ref = req.text
-                return {'message': f'create {self.elementType} success', 'status': 'ok', 'data': self.ref}
+                return Message.model_validate(
+                    {'msg': f'create {self.elementType} success', 'code': 200, 'data': self.ref})
             case 400:
-                return {'message': f'cannot create {self.elementType}', 'status': 'fail', 'data': req.text}
+                return Message.model_validate(
+                    {'msg': f'cannot create {self.elementType}', 'code': 400, 'data': req.text})
             case 409:
-                return {'message': f'changeset {changeSet} has closed or this changeset is not owned by you',
-                        'status': 'fail'}
+                return Message.model_validate(
+                    {'msg': f'changeset {changeSet} has closed or this changeset is not owned by you',
+                     'code': 409})
             case 412:
-                return {'message': f'the {self.elementType} has element that do not exist or are nor visible',
-                        'status': 'fail'}
+                return Message.model_validate(
+                    {'msg': f'the {self.elementType} has element that do not exist or are nor visible',
+                     'code': 412})
             case _:
-                return {'message': f'unknown status code {req.status_code}: {req.text}', 'status': 'fail'}
+                return Message.model_validate(
+                    {'msg': f'unknown status code {req.status_code}: {req.text}', 'code': 404})
 
     async def read(self, elementID: str) -> dict:
         authHeader = await loadAccessToken()
