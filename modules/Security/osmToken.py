@@ -33,7 +33,7 @@ async def getOSMToken() -> str:
     print(uri)
 
     async with async_playwright() as play:
-        browser = await play.chromium.launch(headless=True, channel='chrome')
+        browser = await play.chromium.launch(headless=False, channel='chrome')
         try:
             context = await browser.new_context(storage_state=r'../../modules/osmStorage.json')  # 尝试导入会话避免反复登录
         except FileNotFoundError:

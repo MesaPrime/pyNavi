@@ -29,7 +29,7 @@ async def getOSMToken():
     async with aiofiles.open(r'../osmCookies.json', 'r') as file:
         cookies = json.loads(await file.read())
 
-    async with httpx.AsyncClient(cookies=cookies, follow_redirects=True) as client:
+    async with httpx.AsyncClient(cookies=cookies, follow_redirects=True, proxy='http://127.0.0.1:7890') as client:
         osmAccessTokenResponse = await client.get(uri)  # get code via uri
     return osmAccessTokenResponse.json()
 
@@ -50,7 +50,7 @@ async def redirect(code, state):
                'code': code,
                'redirect_uri': 'http://127.0.0.1:7777/redirect'}
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(proxy='http://127.0.0.1:7890') as client:
         accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)
 
     async with aiofiles.open(r'../osmAccessToken.json', 'w') as file:
