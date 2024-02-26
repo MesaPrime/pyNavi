@@ -4,11 +4,19 @@ import aiofiles
 import httpx
 import uvicorn
 from fastapi import FastAPI
+import webbrowser
+
+
+async def getAccessToken(payload: dict):
+    async with httpx.AsyncClient(proxy='http://127.0.0.1:7890') as client:
+        accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)
+        return accessTokenResponse
+
 
 OAuthApp = FastAPI()  # todo:update cookie in background
 
 
-@OAuthApp.get('/getAccessToken')
+@OAuthApp.get('/osmToken')
 async def getOSMToken():
     async with aiofiles.open(r'../osmAuthSecret.json') as file:
         osmSecret = json.loads(await file.read())
@@ -25,19 +33,13 @@ async def getOSMToken():
         redirect_uri=redirect_uri,
         headers={'User-Agent': userAgent})
     uri, state = client.create_authorization_url('https://www.openstreetmap.org/oauth2/authorize')
-
-    async with aiofiles.open(r'../osmCookies.json', 'r') as file:
-        cookies = json.loads(await file.read())
-
-    async with httpx.AsyncClient(cookies=cookies, follow_redirects=True, proxy='http://127.0.0.1:7890') as client:
-        osmAccessTokenResponse = await client.get(uri)  # get code via uri
-    return osmAccessTokenResponse.json()
+    webbrowser.open(uri)
 
 
 @OAuthApp.get('/redirect')
 async def redirect(code, state):
-    async with aiofiles.open(r'../osmAuthSecret.json') as file:
-        osmSecret = json.loads(await file.read())
+    with open(r'../osmAuthSecret.json') as file:
+        osmSecret = json.loads(file.read())
         client_id = osmSecret['client_id']
         client_secret = osmSecret['client_secret']
         scope = osmSecret['scope']
@@ -50,13 +52,13 @@ async def redirect(code, state):
                'code': code,
                'redirect_uri': 'http://127.0.0.1:7777/redirect'}
 
-    async with httpx.AsyncClient(proxy='http://127.0.0.1:7890') as client:
+    async with httpx.AsyncClient(proxy='http://127.0.0.1:7890', verify=False) as client:
         accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)
-
-    async with aiofiles.open(r'../osmAccessToken.json', 'w') as file:
-        await file.write(json.dumps(accessTokenResponse.json()))
+        async with aiofiles.open(r'../osmAccessToken.json', 'w') as file:
+            await file.write(json.dumps(accessTokenResponse.json()))
     return accessTokenResponse.json()
 
 
 if __name__ == '__main__':
-    uvicorn.run('OAuth2API:OAuthApp', host='127.0.0.1', port=7777)
+    # important $reload$ MUST be false manually
+    uvicorn.run('OAuth2API:OAuthApp', host='127.0.0.1', port=7777, reload=False)
