@@ -7,12 +7,6 @@ from fastapi import FastAPI
 import webbrowser
 
 
-async def getAccessToken(payload: dict):
-    async with httpx.AsyncClient(proxy='http://127.0.0.1:7890') as client:
-        accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)
-        return accessTokenResponse
-
-
 OAuthApp = FastAPI()  # todo:update cookie in background
 
 

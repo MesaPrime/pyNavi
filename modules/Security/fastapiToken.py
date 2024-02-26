@@ -10,7 +10,7 @@ from typing import Dict, Optional, Union
 import sys
 
 sys.path.insert(0, '..')
-from db import UserDatabase
+from modules.db import UserDatabase
 
 # to get a string like this run:
 # openssl rand -hex 32
