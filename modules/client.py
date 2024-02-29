@@ -2,6 +2,7 @@ import sys
 from typing import Optional, Any
 
 import pydantic
+import uvicorn
 
 sys.path.append(r'./')
 
@@ -11,7 +12,7 @@ from starlette import status
 from starlette.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Depends
 from modules.db import DestinationDatabase, UserDatabase
-from modules.Security import fastapiToken
+from modules.Security import fastapiToken, OAuth2API
 import httpx
 
 ServerURL = '127.0.0.1:5700'
@@ -30,6 +31,7 @@ class Message(BaseModel):
 
 app = FastAPI()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauthApp = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,3 +67,9 @@ async def pull(token: fastapiToken.Token = Depends(oauth2_scheme)) -> Message:
             except pydantic.ValidationError as error:
                 print(f'{destination} is not validate to model')
                 pass
+
+
+app.mount('/oauth', OAuth2API.OAuthApp)
+
+if __name__ == '__main__':
+    uvicorn.run('client:app', port=7777, reload=False)

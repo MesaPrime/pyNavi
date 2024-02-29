@@ -17,7 +17,7 @@ async def getOSMToken():
         client_id = osmSecret['client_id']
         client_secret = osmSecret['client_secret']
         scope = osmSecret['scope']
-        redirect_uri = 'http://127.0.0.1:7777/redirect'
+        redirect_uri = 'http://127.0.0.1:7777/oauth/redirect'
         userAgent = 'PyNavi/0.1'
 
     client = AsyncOAuth2Client(
@@ -44,11 +44,11 @@ async def redirect(code, state):
                'scope': scope,
                'grant_type': 'authorization_code',
                'code': code,
-               'redirect_uri': 'http://127.0.0.1:7777/redirect'}
+               'redirect_uri': 'http://127.0.0.1:7777/oauth/redirect'}
 
     async with httpx.AsyncClient(proxy='http://127.0.0.1:7890', verify=False) as client:
         accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)
-        async with aiofiles.open(r'../osmAccessToken.json', 'w') as file:
+        async with aiofiles.open(r'../osmAccessToken.json', 'w') as file:  # todo: replace with pathlib
             await file.write(json.dumps(accessTokenResponse.json()))
     return accessTokenResponse.json()
 
