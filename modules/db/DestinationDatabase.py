@@ -8,8 +8,8 @@ from pathlib import Path
 class DestinationData(BaseModel):
     name: str
     destinationType: str
-    lat: float
-    lon: float
+    lat: float  # 纬度
+    lon: float  # 经度
     comment: Optional[str] = None
     note: Optional[str] = None
 
