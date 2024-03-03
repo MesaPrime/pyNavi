@@ -12,7 +12,7 @@ OAuthApp = FastAPI()  # todo:update cookie in background
 
 @OAuthApp.get('/osmToken')
 async def getOSMToken():
-    async with aiofiles.open(r'../osmAuthSecret.json') as file:
+    async with aiofiles.open(r'./osmAuthSecret.json') as file:
         osmSecret = json.loads(await file.read())
         client_id = osmSecret['client_id']
         client_secret = osmSecret['client_secret']
@@ -32,7 +32,7 @@ async def getOSMToken():
 
 @OAuthApp.get('/redirect')
 async def redirect(code, state):
-    with open(r'../osmAuthSecret.json') as file:
+    with open(r'./osmAuthSecret.json') as file:
         osmSecret = json.loads(file.read())
         client_id = osmSecret['client_id']
         client_secret = osmSecret['client_secret']
@@ -48,7 +48,7 @@ async def redirect(code, state):
 
     async with httpx.AsyncClient(proxy='http://127.0.0.1:7890', verify=False) as client:
         accessTokenResponse = await client.post('https://www.openstreetmap.org/oauth2/token', data=payload)
-        async with aiofiles.open(r'../osmAccessToken.json', 'w') as file:  # todo: replace with pathlib
+        async with aiofiles.open(r'./osmAccessToken.json', 'w') as file:  # todo: replace with pathlib
             await file.write(json.dumps(accessTokenResponse.json()))
     return accessTokenResponse.json()
 

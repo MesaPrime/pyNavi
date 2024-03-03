@@ -9,7 +9,7 @@ from arrow import Arrow
 from modules.server import Message
 
 
-async def loadAccessToken(path: str = r'../osmAccessToken.json') -> dict:
+async def loadAccessToken(path: str = r'./osmAccessToken.json') -> dict:
     async with aiofiles.open(path) as file:
         osmAccessTokenData = json.loads(await file.read())
         authHeader = {'Authorization': f"{osmAccessTokenData['token_type']} {osmAccessTokenData['access_token']}"}
@@ -102,17 +102,27 @@ class STATUS(Enum):
 class CHANGESET:
 
     def __init__(self, changeSetID: Optional[str] = None):
-        if changeSetID:
-            self.changeSetID = changeSetID
+        self.changeSetID = changeSetID
         self.status = STATUS.unknown
         self.lastActivateTime = Arrow.now()
 
     def __str__(self):
         return f'changeSet:{self.changeSetID}'
 
+    def json(self):
+        return json.dumps(
+            {'changesetID': self.changeSetID, 'status': self.status.value,
+             'lastActivateTime': str(self.lastActivateTime)})
+
     async def createChangeSet(self, xml: Union[Optional[str], dict] = None) -> str:
         if xml is None:
-            xml = r'<?xml version="1.0" encoding="utf-8"?>\n<osm><changeset><tag k="created_by" v="MesaPrime via api"></tag><tag k="comment" v="add data"></tag>...</changeset>...</osm>'
+            xml = '''<osm>
+	<changeset>
+		<tag k="created_by" v="MesaPrime"/>
+		...
+	</changeset>
+	...
+</osm>'''
         elif isinstance(xml, dict):
             xml = xmltodict.unparse(xml)
 
@@ -224,8 +234,8 @@ class ELEMENT:
 
     async def upload(self, changeSet: str | CHANGESET) -> Message:
         uploadData: Dict[str:dict] = dict(self.data)
-        uploadData[self.elementType].update({'@changeset': changeSet})
-        nodeData = xmltodict.unparse(uploadData, root='osm')
+        uploadData[self.elementType].update({'@changeset': changeSet.changeSetID})
+        nodeData = xmltodict.unparse({'osm': uploadData})
         authHeader = await loadAccessToken()
         async with httpx.AsyncClient(headers=authHeader) as client:
             req = await client.put(f'https://api.openstreetmap.org/api/0.6/{self.elementType}/create',
