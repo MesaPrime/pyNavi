@@ -133,6 +133,13 @@ class DestinationDatabase:
         except sqlite3.ProgrammingError as error:
             return str(error)
 
+    def deleteAll(self):
+        try:
+            self.cursor.execute(f"""DELETE FROM destination""")
+            return f"table destination's all data deleted"
+        except sqlite3.ProgrammingError as error:
+            return str(error)
+
     def selectAll(self) -> list:
         return self.cursor.execute("SELECT * FROM destination").fetchall()
 

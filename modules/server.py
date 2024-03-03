@@ -55,6 +55,7 @@ async def uploadTargetData(destinationData: DestinationDatabase.DestinationData,
 async def feedAll(token: Token = Depends(oauth2_scheme), debugMode: bool = False) -> Message:
     with DestinationDatabase.DestinationDatabase('./dataStorage/destination.db', debugMode) as db:
         data = db.selectAll()
+        db.deleteAll()
     return Message(msg='ok', code=200, data=data)
 
 
