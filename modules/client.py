@@ -18,7 +18,8 @@ from modules.Security import fastapiToken, OAuth2API
 from modules.api import osmAPI
 import httpx
 
-ServerURL = '127.0.0.1:5700'
+with open(r'./config.json', 'r') as config:
+    ServerURL = json.loads(config.read())['serverURL']
 ServerUploadEndpoint = ServerURL + '/uploadDestination'
 
 OsmAPI = '127.0.0.1:5701'  # PynaviAPI.py
